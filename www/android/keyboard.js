@@ -38,8 +38,11 @@ channel.onCordovaReady.subscribe(function() {
     function success(msg) {
         var action = msg.charAt(0);
         if ( action === 'S' ) {
-            var keyboardHeight = parseInt(msg.split("/")[1]);
-            var hasNavigationBar = msg.split("/")[2] == "true" ? true : false;
+            var splitData = msg.split("/");
+            var keyboardHeight = parseInt(splitData[1]);
+            var hasNavigationBar = splitData[2] == "true" ? true : false;
+            var navigationBarHeight = parseInt(splitData[3]);
+            
             cordova.plugins.Keyboard.isVisible = true;
             cordova.fireWindowEvent('native.keyboardshow', { 'keyboardHeight': keyboardHeight, 'hasNavigationBar': hasNavigationBar });
         } else if ( action === 'H' ) {
