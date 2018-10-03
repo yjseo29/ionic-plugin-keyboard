@@ -44,7 +44,7 @@ channel.onCordovaReady.subscribe(function() {
             var navigationBarHeight = parseInt(splitData[3]);
             
             cordova.plugins.Keyboard.isVisible = true;
-            cordova.fireWindowEvent('native.keyboardshow', { 'keyboardHeight': keyboardHeight, 'hasNavigationBar': hasNavigationBar });
+            cordova.fireWindowEvent('native.keyboardshow', { 'keyboardHeight': keyboardHeight, 'hasNavigationBar': hasNavigationBar, 'navigationBarHeight': navigationBarHeight});
         } else if ( action === 'H' ) {
             cordova.plugins.Keyboard.isVisible = false;
             cordova.fireWindowEvent('native.keyboardhide');
