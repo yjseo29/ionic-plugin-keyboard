@@ -1,29 +1,31 @@
 package io.ionic.keyboard;
 
+import android.app.Activity;
+import android.content.Context;
+import android.content.res.Resources;
+import android.graphics.Point;
+import android.graphics.Rect;
+import android.os.Build;
+import android.util.DisplayMetrics;
+import android.view.Display;
+import android.view.View;
+import android.view.ViewTreeObserver.OnGlobalLayoutListener;
+import android.view.WindowManager;
+import android.view.inputmethod.InputMethodManager;
+
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaInterface;
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.CordovaWebView;
 import org.apache.cordova.PluginResult;
-import org.apache.cordova.PluginResult.Status;
 import org.json.JSONArray;
 import org.json.JSONException;
 
-import android.content.Context;
-import android.graphics.Rect;
-import android.util.DisplayMetrics;
-import android.view.View;
-import android.view.ViewTreeObserver.OnGlobalLayoutListener;
-import android.view.inputmethod.InputMethodManager;
+import java.lang.reflect.Method;
 
 // import additionally required classes for calculating screen height
-import android.view.Display;
-import android.graphics.Point;
-import android.os.Build;
 
 public class IonicKeyboard extends CordovaPlugin {
-    private OnGlobalLayoutListener list;
-    private View rootView;
 
     public void initialize(CordovaInterface cordova, CordovaWebView webView) {
         super.initialize(cordova, webView);
@@ -66,8 +68,8 @@ public class IonicKeyboard extends CordovaPlugin {
                     final float density = dm.density;
 
                     //http://stackoverflow.com/a/4737265/1091751 detect if keyboard is showing
-                    rootView = cordova.getActivity().getWindow().getDecorView().findViewById(android.R.id.content).getRootView();
-                    list = new OnGlobalLayoutListener() {
+                    final View rootView = cordova.getActivity().getWindow().getDecorView().findViewById(android.R.id.content).getRootView();
+                    OnGlobalLayoutListener list = new OnGlobalLayoutListener() {
                         int previousHeightDiff = 0;
                         @Override
                         public void onGlobalLayout() {
@@ -98,7 +100,12 @@ public class IonicKeyboard extends CordovaPlugin {
 
                             int pixelHeightDiff = (int)(heightDiff / density);
                             if (pixelHeightDiff > 100 && pixelHeightDiff != previousHeightDiff) { // if more than 100 pixels, its probably a keyboard...
-                                String msg = "S" + Integer.toString(pixelHeightDiff);
+                                boolean hasNavigationBar = hasNavigationBar(cordova.getActivity());
+                                int navigationBarHeight = 0;
+
+                                if(hasNavigationBar) navigationBarHeight = getNavigationBarHeight(cordova.getActivity());
+
+                                String msg = "S/" + Integer.toString(pixelHeightDiff)+"/"+hasNavigationBar+"/"+Integer.toString(navigationBarHeight);
                                 result = new PluginResult(PluginResult.Status.OK, msg);
                                 result.setKeepCallback(true);
                                 callbackContext.sendPluginResult(result);
@@ -126,11 +133,44 @@ public class IonicKeyboard extends CordovaPlugin {
         return false;  // Returning false results in a "MethodNotFound" error.
     }
 
-    @Override
-    public void onDestroy() {
-        rootView.getViewTreeObserver().removeOnGlobalLayoutListener(list);
+    public boolean hasNavigationBar(Activity activity) {
+        Context context = activity.getBaseContext();
+        boolean hasNavigationBar = false;
+        Resources rs = context.getResources();
+        int id = rs.getIdentifier("config_showNavigationBar", "bool", "android");
+        if (id > 0) {
+            hasNavigationBar = rs.getBoolean(id);
+        }
+        try {
+            Class systemPropertiesClass = Class.forName("android.os.SystemProperties");
+            Method m = systemPropertiesClass.getMethod("get", String.class);
+            String navBarOverride = (String) m.invoke(systemPropertiesClass, "qemu.hw.mainkeys");
+            if ("1".equals(navBarOverride)) {
+                hasNavigationBar = false;
+            } else if ("0".equals(navBarOverride)) {
+                hasNavigationBar = true;
+            }
+        } catch (Exception e) {
+        }
+        return hasNavigationBar;
     }
 
+    public int getNavigationBarHeight(Activity activity) {
+        Context context = activity.getBaseContext();
+        int vh = 0;
+        WindowManager windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
+        Display display = windowManager.getDefaultDisplay();
+        DisplayMetrics dm = new DisplayMetrics();
+        try {
+            @SuppressWarnings("rawtypes")
+            Class c = Class.forName("android.view.Display");
+            @SuppressWarnings("unchecked")
+            Method method = c.getMethod("getRealMetrics", DisplayMetrics.class);
+            method.invoke(display, dm);
+            vh = (int)((dm.heightPixels - windowManager.getDefaultDisplay().getHeight()) / dm.density);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return vh;
+    }
 }
-
-
